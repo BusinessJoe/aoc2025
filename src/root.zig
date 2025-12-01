@@ -1,23 +1,51 @@
-//! By convention, root.zig is the root source file when making a library.
 const std = @import("std");
+const Allocator = std.mem.Allocator;
 
-pub fn bufferedPrint() !void {
-    // Stdout is for the actual output of your application, for example if you
-    // are implementing gzip, then only the compressed bytes should be sent to
-    // stdout, not any debugging messages.
-    var stdout_buffer: [1024]u8 = undefined;
-    var stdout_writer = std.fs.File.stdout().writer(&stdout_buffer);
-    const stdout = &stdout_writer.interface;
+pub const Solution = struct {
+    part1: ?u32,
+    part2: ?u32,
 
-    try stdout.print("Run `zig build test` to run the tests.\n", .{});
+    pub fn first_part(part1: u32) Solution {
+        return Solution {
+            .part1 = part1,
+            .part2 = null,
+        };
+    }
 
-    try stdout.flush(); // Don't forget to flush!
-}
+    pub fn both_parts(part1: u32, part2: u32) Solution {
+        return Solution {
+            .part1 = part1,
+            .part2 = part2,
+        };
+    }
+};
 
-pub fn add(a: i32, b: i32) i32 {
-    return a + b;
-}
+pub fn solution_1(reader: *std.Io.Reader, allocator: Allocator) !Solution {
+    const max_size = 1024 * 32;
+    const bytes: []u8 = try allocator.alloc(u8, max_size);
+    defer allocator.free(bytes);
+    const n_read = try reader.readSliceShort(bytes);
 
-test "basic add functionality" {
-    try std.testing.expect(add(3, 7) == 10);
+    if (reader.peek(1) != error.EndOfStream) {
+        return error.BufferTooSmall;
+    }
+
+    var angle: u32 = 50;
+    var zero_count: u32 = 0;
+
+    var lines = std.mem.splitScalar(u8, bytes[0..n_read], '\n');
+    while (lines.next()) |line| {
+        if (line.len == 0) continue;
+
+        var val = try std.fmt.parseInt(u32, line[1..], 10);
+        val = val % 100;
+        if (line[0] == 'L') {
+            val = 100 - val;
+        }
+       
+        angle = (angle + val) % 100;
+        if (angle == 0) zero_count += 1;
+    }
+
+    return Solution.first_part(zero_count);
 }
