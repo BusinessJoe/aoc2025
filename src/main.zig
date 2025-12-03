@@ -21,8 +21,16 @@ pub fn main() !void {
     defer allocator.free(stdout_buf);
     var stdout = std.fs.File.writer(std.fs.File.stdout(), stdout_buf).interface;
 
+    var args = try std.process.argsWithAllocator(allocator);
+    defer args.deinit();
+
+    _ = args.skip(); // skip process name
+    const input_subdirname = args.next() orelse "real";
+    const input_name = try std.fmt.allocPrint(allocator, "inputs/{s}/", .{input_subdirname});
+    defer allocator.free(input_name);
+
     // Directory with input files
-    var input_dir = try std.fs.cwd().openDir("inputs/real/", .{});
+    var input_dir = try std.fs.cwd().openDir(input_name, .{});
     defer input_dir.close();
 
     // All solutions
