@@ -28,6 +28,7 @@ pub fn main() !void {
     // All solutions
     const runners = [_]SolutionRunner{
         solution_runner(u32, u32, aoc2025.solution_1),
+        solution_runner(u64, u64, aoc2025.solution_2),
     };
 
     for (runners, 1..) |runner, day_n| {
@@ -55,7 +56,7 @@ const SolutionRunner = *const fn(allocator: Allocator, input_dir: std.fs.Dir, da
 pub fn solution_runner(
     comptime T: type, 
     comptime U: type, 
-    solution: fn(Allocator, []u8) anyerror!Solution(T, U)
+    solution: fn(Allocator, []const u8) anyerror!Solution(T, U)
 ) SolutionRunner {
     const Runner = struct {
         pub fn run(allocator: Allocator, input_dir: std.fs.Dir, day_n: u32) !SolutionInfo {
@@ -73,9 +74,10 @@ pub fn solution_runner(
             const file_ioreader: *std.Io.Reader = &file_reader.interface;
 
             try file_ioreader.readSliceAll(file_buf);
+            const trimmed_file_buf = std.mem.trimEnd(u8, file_buf, &[_]u8{'\n'});
 
             const start_time = try Instant.now();
-            const sol = try solution(allocator, file_buf);
+            const sol = try solution(allocator, trimmed_file_buf);
             const end_time = try Instant.now();
             const duration_ns = end_time.since(start_time);
 

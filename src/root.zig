@@ -9,7 +9,7 @@ pub fn Solution(comptime T: type, comptime U: type) type {
         part2: ?U,
 
         pub fn first_part(part1: T) Self {
-            return Solution {
+            return Self {
                 .part1 = part1,
                 .part2 = null,
             };
@@ -24,7 +24,7 @@ pub fn Solution(comptime T: type, comptime U: type) type {
     };
 }
 
-pub fn solution_1(allocator: Allocator, bytes: []u8) !Solution(u32, u32) {
+pub fn solution_1(allocator: Allocator, bytes: []const u8) !Solution(u32, u32) {
     _ = allocator;
 
     var angle: u32 = 50;
@@ -33,8 +33,6 @@ pub fn solution_1(allocator: Allocator, bytes: []u8) !Solution(u32, u32) {
 
     var lines = std.mem.splitScalar(u8, bytes, '\n');
     while (lines.next()) |line| {
-        if (line.len == 0) continue;
-
         const val = try std.fmt.parseInt(u32, line[1..], 10);
 
         var right: bool = true;
@@ -72,6 +70,46 @@ fn update_angle(current_angle: u32, right: bool, val: u32) struct { new_angle: u
     };
 }
 
+pub fn solution_2(allocator: Allocator, input: []const u8) !Solution(u64, u64) {
+    _ = allocator;
+
+    var total: u64 = 0;
+
+    var pairs = std.mem.splitScalar(u8, input, ',');
+
+    while (pairs.next()) |pair| {
+        var ids = std.mem.splitScalar(u8, pair, '-');
+        const id_first = try std.fmt.parseInt(u64, ids.next() orelse return error.BadInput, 10);
+        const id_last = try std.fmt.parseInt(u64, ids.next() orelse return error.BadInput, 10);
+
+        for (id_first..id_last + 1) |id| {
+            total += try get_invalid_value(@intCast(id));
+        }
+    }
+
+    return Solution(u64, u64).first_part(total);
+}
+
+fn get_invalid_value(id: u64) !u64 {
+    const id_len = std.math.log10_int(id) + 1;
+    if (id_len % 2 == 1) return 0;
+
+    const half = id_len / 2;
+    for (0..half) |i| {
+        if (try get_ith_digit(id, @intCast(i)) != try get_ith_digit(id, @intCast(i + half))) return 0;
+    }
+
+    return id;
+}
+
+fn get_ith_digit(n: u64, i: u64) !u64 {
+    return (n / try std.math.powi(u64, 10, i)) % 10;
+}
+
+
+//
+// Testing
+//
 const expectEqual = std.testing.expectEqual;
 
 test "update angle" {
