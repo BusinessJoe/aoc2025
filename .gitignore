@@ -1,5 +1,10 @@
+# Devenv
 .devenv/
 .devenv.flake.nix
 
+# Zig
 .zig-cache/
 zig-out/
+
+# Valgrind
+vgcore.*

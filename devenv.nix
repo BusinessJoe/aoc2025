@@ -9,7 +9,9 @@ in {
   packages = [ 
     pkgs.git 
     pkgs.git-crypt
-    zig."0.15.1"
+    zig."0.15.2"
+    pkgs.valgrind
+    pkgs.gdb
   ];
   # languages.zig.enable = true;
   enterShell = "zig version"; 

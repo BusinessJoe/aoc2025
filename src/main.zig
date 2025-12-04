@@ -35,17 +35,27 @@ pub fn main() !void {
 
     // All solutions
     const runners = [_]SolutionRunner{
-        solution_runner(u32, u32, aoc2025.solution_1),
-        solution_runner(u64, u64, aoc2025.solution_2),
+        SolutionRunner.init(u32, u32, trivial_solution),
+        // solution_runner(u32, u32, aoc2025.solution_1),
+        // solution_runner(u64, u64, aoc2025.solution_2),
     };
 
     for (runners, 1..) |runner, day_n| {
-        const solution_info = try runner(allocator, input_dir, @as(u32, @intCast(day_n)));
+        const solution_info = try runner.run(allocator, input_dir, @as(u32, @intCast(day_n)));
         defer solution_info.deinit(allocator);
 
         try stdout.print("Day {d}, {d} ms:\n  Part 1: {s}\n  Part 2: {s}\n", .{day_n, solution_info.duration_ns / 1000, solution_info.part1, solution_info.part2});
         try stdout.flush();
     }
+}
+
+fn trivial_solution(allocator: Allocator, input: []const u8, part1_opaque: *anyopaque, part2_opaque: *anyopaque) !void {
+    _ = allocator;
+    _ = input;
+    const part1: *u32 = @ptrCast(@alignCast(part1_opaque));
+    const part2: *u32 = @ptrCast(@alignCast(part2_opaque));
+    part1.* = 1;
+    part2.* = 1;
 }
 
 const SolutionInfo = struct {
@@ -59,45 +69,96 @@ const SolutionInfo = struct {
     }
 };
 
-const SolutionRunner = *const fn(allocator: Allocator, input_dir: std.fs.Dir, day_n: u32) anyerror!SolutionInfo;
+// const SolutionRunner = *const fn(allocator: Allocator, input_dir: std.fs.Dir, day_n: u32) anyerror!SolutionInfo;
 
-pub fn solution_runner(
-    comptime T: type, 
-    comptime U: type, 
-    solution: fn(Allocator, []const u8) anyerror!Solution(T, U)
-) SolutionRunner {
-    const Runner = struct {
-        pub fn run(allocator: Allocator, input_dir: std.fs.Dir, day_n: u32) !SolutionInfo {
-            const filename = try std.fmt.allocPrint(allocator, "{d}", .{day_n});
-            defer allocator.free(filename);
-            
-            const file = try input_dir.openFile(filename, .{});
-            defer file.close();
+const SolutionRunner = struct {
+    part1_type: type,
+    part2_type: type,
+    solution: *const fn(Allocator, []const u8, part1: *anyopaque, part2: *anyopaque) anyerror!void,
 
-            const file_size: u64 = try file.getEndPos();
-            const file_buf: []u8 = try allocator.alloc(u8, file_size);
-            defer allocator.free(file_buf);
+    pub fn init(comptime T: type, comptime U: type, solution: *const fn(Allocator, []const u8, part1: *anyopaque, part2: *anyopaque) anyerror!void) SolutionRunner {
+        return .{
+            .part1_type = T,
+            .part2_type = U,
+            .solution = solution,
+        };
+    }
 
-            var file_reader: std.fs.File.Reader = file.reader(file_buf);
-            const file_ioreader: *std.Io.Reader = &file_reader.interface;
+    pub fn run(self: SolutionRunner, allocator: Allocator, input_dir: std.fs.Dir, day_n: u32) !SolutionInfo {
+        const filename = try std.fmt.allocPrint(allocator, "{d}", .{day_n});
+        defer allocator.free(filename);
 
-            try file_ioreader.readSliceAll(file_buf);
-            const trimmed_file_buf = std.mem.trimEnd(u8, file_buf, &[_]u8{'\n'});
+        const file = try input_dir.openFile(filename, .{});
+        defer file.close();
 
-            const start_time = try Instant.now();
-            const sol = try solution(allocator, trimmed_file_buf);
-            const end_time = try Instant.now();
-            const duration_ns = end_time.since(start_time);
+        const file_size: u64 = try file.getEndPos();
+        const file_buf: []u8 = try allocator.alloc(u8, file_size);
+        defer allocator.free(file_buf);
 
-            const part1: []u8 = try std.fmt.allocPrint(allocator, "{any}", .{sol.part1});
-            const part2: []u8 = try std.fmt.allocPrint(allocator, "{any}", .{sol.part2});
+        var file_reader: std.fs.File.Reader = file.reader(file_buf);
+        const file_ioreader: *std.Io.Reader = &file_reader.interface;
 
-            return SolutionInfo {
-                .duration_ns = duration_ns,
-                .part1 = part1,
-                .part2 = part2,
-            };
-        }
-    };
-    return Runner.run;
-}
+        try file_ioreader.readSliceAll(file_buf);
+        const trimmed_file_buf = std.mem.trimEnd(u8, file_buf, &[_]u8{'\n'});
+
+        const part1 = try allocator.create(self.part1_type);
+        defer allocator.destroy(part1);
+        const part2 = try allocator.create(self.part2_type);
+        defer allocator.destroy(part2);
+
+        const start_time = try Instant.now();
+        const sol = try self.solution(allocator, trimmed_file_buf, &part1, &part2);
+        const end_time = try Instant.now();
+        const duration_ns = end_time.since(start_time);
+
+        const part1_str: []u8 = try std.fmt.allocPrint(allocator, "{any}", .{sol.part1});
+        const part2_str: []u8 = try std.fmt.allocPrint(allocator, "{any}", .{sol.part2});
+
+        return SolutionInfo {
+            .duration_ns = duration_ns,
+            .part1 = part1_str,
+            .part2 = part2_str,
+        };
+    }
+};
+
+// pub fn solution_runner(
+//     comptime T: type, 
+//     comptime U: type, 
+//     solution: *const fn(Allocator, []const u8) anyerror!Solution(T, U)
+// ) SolutionRunner {
+//     const Runner = struct {
+//         pub fn run(allocator: Allocator, input_dir: std.fs.Dir, day_n: u32) !SolutionInfo {
+//             const filename = try std.fmt.allocPrint(allocator, "{d}", .{day_n});
+//             defer allocator.free(filename);
+
+//             const file = try input_dir.openFile(filename, .{});
+//             defer file.close();
+
+//             const file_size: u64 = try file.getEndPos();
+//             const file_buf: []u8 = try allocator.alloc(u8, file_size);
+//             defer allocator.free(file_buf);
+
+//             var file_reader: std.fs.File.Reader = file.reader(file_buf);
+//             const file_ioreader: *std.Io.Reader = &file_reader.interface;
+
+//             try file_ioreader.readSliceAll(file_buf);
+//             const trimmed_file_buf = std.mem.trimEnd(u8, file_buf, &[_]u8{'\n'});
+
+//             const start_time = try Instant.now();
+//             const sol = try solution(allocator, trimmed_file_buf);
+//             const end_time = try Instant.now();
+//             const duration_ns = end_time.since(start_time);
+
+//             const part1: []u8 = try std.fmt.allocPrint(allocator, "{any}", .{sol.part1});
+//             const part2: []u8 = try std.fmt.allocPrint(allocator, "{any}", .{sol.part2});
+
+//             return SolutionInfo {
+//                 .duration_ns = duration_ns,
+//                 .part1 = part1,
+//                 .part2 = part2,
+//             };
+//         }
+//     };
+//     return Runner.run;
+// }
