@@ -1,30 +1,11 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
-pub fn Solution(comptime T: type, comptime U: type) type {
-    return struct {
-        const Self = @This();
+pub const framework = @import("framework.zig");
+const DayResult = framework.DayResult;
 
-        part1: ?T,
-        part2: ?U,
 
-        pub fn first_part(part1: T) Self {
-            return Self {
-                .part1 = part1,
-                .part2 = null,
-            };
-        }
-
-        pub fn both_parts(part1: T, part2: U) Self {
-            return Self {
-                .part1 = part1,
-                .part2 = part2,
-            };
-        }
-    };
-}
-
-pub fn solution_1(allocator: Allocator, bytes: []const u8) !Solution(u32, u32) {
+pub fn solution_1(allocator: Allocator, bytes: []const u8, part1_buf: []u8, part2_buf: []u8) !DayResult {
     _ = allocator;
 
     var angle: u32 = 50;
@@ -46,7 +27,7 @@ pub fn solution_1(allocator: Allocator, bytes: []const u8) !Solution(u32, u32) {
         if (angle == 0) zero_count += 1;
     }
 
-    return Solution(u32, u32).both_parts(zero_count, p2_count);
+    return try DayResult.both_parts(part1_buf, part2_buf, zero_count, p2_count);
 }
 
 fn update_angle(current_angle: u32, right: bool, val: u32) struct { new_angle: u32, num_zeros: u32 } {
@@ -70,7 +51,7 @@ fn update_angle(current_angle: u32, right: bool, val: u32) struct { new_angle: u
     };
 }
 
-pub fn solution_2(allocator: Allocator, input: []const u8) !Solution(u64, u64) {
+pub fn solution_2(allocator: Allocator, input: []const u8, part1_buf: []u8, part2_buf: []u8) !DayResult {
     var total_p1: u64 = 0;
     var total_p2: u64 = 0;
 
@@ -91,7 +72,7 @@ pub fn solution_2(allocator: Allocator, input: []const u8) !Solution(u64, u64) {
         }
     }
 
-    return Solution(u64, u64).both_parts(total_p1, total_p2);
+    return DayResult.both_parts(part1_buf, part2_buf, total_p1, total_p2);
 }
 
 fn get_invalid_values(allocator: Allocator, id_first: u64, id_last: u64, repeats: u64, set_opt: ?*std.AutoHashMapUnmanaged(u64, void)) !u64 {
