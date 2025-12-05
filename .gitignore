@@ -8,3 +8,6 @@ zig-out/
 
 # Valgrind
 vgcore.*
+
+# git-crypt
+.keyfile

@@ -39,6 +39,7 @@ pub fn main() !void {
     const solutions = [_]DaySolution{
         aoc2025.solution1,
         aoc2025.solution2,
+        aoc2025.solution3,
     };
 
     const part1_buf = try allocator.alloc(u8, 512);
