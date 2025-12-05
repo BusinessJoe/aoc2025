@@ -3,7 +3,9 @@ const Allocator = std.mem.Allocator;
 
 pub const framework = @import("framework.zig");
 
-pub const solution1 = @import("days/1.zig").solution;
-pub const solution2 = @import("days/2.zig").solution;
-pub const solution3 = @import("days/3.zig").solution;
-
+pub const solutions = [_]framework.DaySolution{
+    @import("days/1.zig").solution,
+    @import("days/2.zig").solution,
+    @import("days/3.zig").solution,
+    @import("days/4.zig").solution,
+};

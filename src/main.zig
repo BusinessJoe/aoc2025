@@ -7,7 +7,7 @@ const DaySolution = aoc2025.framework.DaySolution;
 const DayResult = aoc2025.framework.DayResult;
 
 pub fn main() !void {
-    var gpa: std.heap.DebugAllocator(.{.safety = true, .never_unmap = true, .retain_metadata = true}) = .init;
+    var gpa: std.heap.DebugAllocator(.{}) = .init;
     const allocator = gpa.allocator();
     defer {
         if (gpa.deinit() == .leak) {
@@ -36,11 +36,7 @@ pub fn main() !void {
     defer input_dir.close();
 
     // All solutions
-    const solutions = [_]DaySolution{
-        aoc2025.solution1,
-        aoc2025.solution2,
-        aoc2025.solution3,
-    };
+    const solutions = aoc2025.solutions;
 
     const part1_buf = try allocator.alloc(u8, 512);
     defer allocator.free(part1_buf);
