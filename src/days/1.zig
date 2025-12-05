@@ -1,6 +1,5 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
-
 const DayResult = @import("../framework.zig").DayResult;
 
 pub fn solution(allocator: Allocator, bytes: []const u8, part1_buf: []u8, part2_buf: []u8) !DayResult {
