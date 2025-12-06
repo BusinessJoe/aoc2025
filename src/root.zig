@@ -9,4 +9,5 @@ pub const solutions = [_]framework.DaySolution{
     @import("days/3.zig").solution,
     @import("days/4.zig").solution,
     @import("days/5.zig").solution,
+    @import("days/6.zig").solution,
 };

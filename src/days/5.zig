@@ -73,17 +73,11 @@ pub fn solution(allocator: Allocator, input: []const u8, part1_buf: []u8, part2_
     var start: u64 = 0;
     for (markers.items) |marker| {
         if (marker.start) {
-            if (depth == 0) {
-                start = marker.val;
-            }
+            if (depth == 0) start = marker.val;
             depth += 1;
         } else {
             depth -= 1;
-            if (depth == 0) {
-                const end = marker.val;
-                const length = end - start;
-                part2 += length;
-            }
+            if (depth == 0) part2 += marker.val - start;
         }
     }
 
