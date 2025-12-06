@@ -48,7 +48,7 @@ pub fn main() !void {
 
         try stdout.print("Day {d}, {d} ms:\n  Part 1: {?s}\n  Part 2: {?s}\n", .{
             day_n, 
-            timed_result.duration_ns / 1000, 
+            timed_result.duration_ns / 1000_000, 
             timed_result.day_result.part1_str,
             timed_result.day_result.part2_str,
         });
