@@ -1,4 +1,4 @@
-STAT p1(5*4) p2(5*4) dial dist right_copy (line)
+STAT p1(5*4) p2(5*4) dial dist scratch right_copy (line)
 line is (cont right n d1 d2 d3 scratch)
 
 skip over solution space = 40 cells
@@ -9,7 +9,7 @@ skip over solution space = 40 cells
 
 >+++++[<++++++++++>-]<
 setup (sols) ^dial=50 (line)
->>>   point at line
+>>>>   point at line
 +   set cont
 [   loop read line
 === BEGIN READ LINE ===
@@ -57,7 +57,7 @@ will either be L=76 or R=82 or EOF=0
       >>>++++[<<<------------>>>-]<<<
       
       add 100s digit to part2
-      [-<<<<<<<
+      [-<<<<<<<<
 === BEGIN INCREMENT ===
 +[
   -
@@ -91,7 +91,7 @@ will either be L=76 or R=82 or EOF=0
 
 >
 === END INCREMENT ===  
-      >>>>>>>]
+      >>>>>>>>]
 
       move 10s digit left
       >[<+>-]
@@ -129,22 +129,123 @@ will either be L=76 or R=82 or EOF=0
 === BEGIN HANDLE LINE ===
 assumes pointing at cont
 
-<<  point at dial
+<<<<  point at dial
 [
-  copies dial to dist
-  >>>>  point at right
+  copies dial to dist without clearing dial
+  [->>+<<]
+  >>[-<+<+>>]<<
+  
+  >>>>>  point at right
   [
     -<<+>>  move value to right_copy
     right rotation so dist=100 minus dial
-    <<<     point to dist
-    >>>>>>>>++++++++++[<<<<<<<<++++++++++>>>>>>>>-]<<<<<<<< add 100 to dist
+    <<<<     point to dist
+    [-]
+    >++++++++++[<++++++++++>-]< add 100 to dist
     <   point to dial
     [->-<]  subtract dial from dist
+    >>>>>    point at right
+  ]
+  <<[>>+<<-]    move value from right_copy to right
+  <<<    point at dial
+  [-] clear dial
+]
+
+
+>>>>>>   point at n
+[
+  - decrement n
+  <<<<< point at dist
+  >+<   set iszero (scratch)
+  [
+    if not zero then reset iszero
+    >-<
+    [<+>-]  copy to dial
+  ]
+  <[>+<-]> copy back to dist
+  >     point at iszero
+  [
+    -
+    ++++++++++[<++++++++++>-] set dist to 100
+  ]
+  < point at dist
+  - decrement dist
+  >+<   set iszero (scratch)
+  [
+    if not zero then reset iszero
+    >-<
+    [<+>-]  copy to dial
+  ]
+  <[>+<-]> copy back to dist
+  >     point at iszero
+  [
+    -
+    <<< point at p2
+=== BEGIN INCREMENT ===
++[
+  -
+  <<<<+
+  >>+
+  <<----------
+  [
+    >>-
+    <<[>+<-]
+  ]
+  >[<+>-]
+  <++++++++++>
+
+  >[
+    -
+    <<---------->>
+    >[<<<<<+>>>>>-]
+    <<<<<
+    +
+    >+
+    <<
+  ]
+
+  >>
+]
+
+<[
+  [>>>>>+<<<<<-]
+  >>>>>-
+]
+
+>
+=== END INCREMENT ===  
+    >>> point at iszero
+  ]
+  < point at dist
+  >>>>> point at n
+]
+
+
+<<<<< point at dist
+[
+  copies dist to dial without clearing dist
+  [->+<]
+  >[-<+<+>>]<
+  
+  >>>>  point at right
+  [
+    -<<+>>  move value to right_copy
+    right rotation so dial=100 minus dist
+    <<<<<     point to dial
+    [-]
+    >>++++++++++[<<++++++++++>>-]<< add 100 to dial
+    >   point to dist
+    [-<->]  subtract dist from dial
     >>>>    point at right
   ]
   <<[>>+<<-]    move value from right_copy to right
+  <<    point at dist
+  [-] clear dist
 ]
 
+
 === END HANDLE LINE ===
+
+>>> point at cont
 
 ]
