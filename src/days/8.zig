@@ -37,9 +37,11 @@ pub fn solution(allocator: Allocator, input: []const u8, part1_buf: []u8, part2_
 
     const closest1000 = pairs[0..1000];
 
-    build_graphs(closest1000);
+    const top3 = try buildGraphs(allocator, closest1000, points.len);
 
-    return DayResult.both_parts(part1_buf, part2_buf, num_points, null);
+    const part1 = top3[0] * top3[1] * top3[2];
+
+    return DayResult.both_parts(part1_buf, part2_buf, part1, null);
 }
 
 const Pair = struct {
@@ -62,7 +64,7 @@ fn findPairsSlow(allocator: Allocator, points: []Point) ![]Pair {
         for (i+1..points.len) |j| {
             const point2 = points[j];
             const pair: Pair = .{ 
-                .sq_dist = calc_sq_dist(point1, point2), 
+                .sq_dist = calcSqDist(point1, point2), 
                 .p1 = i, 
                 .p2 = j,
             };
@@ -76,16 +78,69 @@ fn findPairsSlow(allocator: Allocator, points: []Point) ![]Pair {
     return pairs;
 }
 
-fn calc_sq_dist(point1: Point, point2: Point) u64 {
-    return point1[0] * point2[0] 
-        + point1[1] * point2[1]
-        + point1[2] * point2[2];
+fn calcSqDist(point1: Point, point2: Point) u64 {
+    const dx = @max(point1[0], point2[0]) - @min(point1[0], point2[0]);
+    const dy = @max(point1[1], point2[1]) - @min(point1[1], point2[1]);
+    const dz = @max(point1[2], point2[2]) - @min(point1[2], point2[2]);
+    return dx * dx + dy * dy + dz * dz;
 }
 
-// tmp
-// Graph is an adjacency list
-const Graph = []std.ArrayList(usize);
+const AdjacencyList = []std.ArrayList(usize);
 
-fn build_graphs(allocator: Allocator, pairs: []Pair) ![3]Graph {
-    
+fn buildGraphs(allocator: Allocator, pairs: []Pair, num_points: usize) ![3]u64 {
+    const adjacency_list = try allocator.alloc(std.ArrayList(usize), num_points);
+    defer {
+        for (adjacency_list) |*list| {
+            list.deinit(allocator);
+        }
+        allocator.free(adjacency_list);
+    }
+
+    for (adjacency_list) |*list| {
+        list.* = try std.ArrayList(usize).initCapacity(allocator, 5);
+    }
+
+    for (pairs) |pair| {
+        try adjacency_list[pair.p1].append(allocator, pair.p2);
+        try adjacency_list[pair.p2].append(allocator, pair.p1);
+    }
+
+
+    var visited: std.AutoHashMapUnmanaged(usize, void) = .empty;
+    defer visited.deinit(allocator);
+
+    var graph_sizes: std.ArrayList(usize) = .empty;
+    defer graph_sizes.deinit(allocator);
+
+    for (0..num_points) |point_idx| {
+        if (visited.contains(point_idx)) continue;
+
+        try graph_sizes.append(allocator, try getGraphSize(allocator, point_idx, adjacency_list, &visited));
+    }
+
+    std.mem.sortUnstable(usize, graph_sizes.items, {}, usizelessThan);
+
+    return [_]u64{
+        graph_sizes.items[graph_sizes.items.len - 1],
+        graph_sizes.items[graph_sizes.items.len - 2],
+        graph_sizes.items[graph_sizes.items.len - 3],
+    };
+}
+
+fn usizelessThan(ctx: void, a: usize, b: usize) bool {
+    _ = ctx;
+    return a < b;
+}
+
+fn getGraphSize(allocator: Allocator, point_idx: usize, adjacency_list: AdjacencyList, visited: *std.AutoHashMapUnmanaged(usize, void)) !usize {
+    if (visited.contains(point_idx)) return 0;
+
+    try visited.put(allocator, point_idx, {});
+    var total: usize = 1;
+
+    for (adjacency_list[point_idx].items) |next| {
+        total += try getGraphSize(allocator, next, adjacency_list, visited);
+    }
+
+    return total;
 }
