@@ -9,11 +9,15 @@ skip over solution space = 40 cells
 
 >+++++[<++++++++++>-]<
 setup (sols) ^dial=50 (line)
->
+>   point at line
++   set cont
 === BEGIN READ LINE ===
 
+assumes pointing at cont
+
 >[-]    reset right
->,      read into d1 (scratch)
+>[-]    reset n
+,      read into n (scratch)
 will either be L=76 or R=82 or EOF=0
 <<->>   reset cont
 [
@@ -27,11 +31,14 @@ will either be L=76 or R=82 or EOF=0
 
   [
     if not zero then we had R
-    <<+>>
-    [-] clear d1 (scratch)
+    <+>
+    [-] clear n (scratch)
   ]
 
+  > point at d1
+
   === BEGIN READ DIGIT ===
+  assumes pointing at d1
   
   ,     first digit always present
   >,    second char may be LF=10
@@ -51,7 +58,7 @@ will either be L=76 or R=82 or EOF=0
       >>>++++[<<<------------>>>-]<<<
       
       add 100s digit to part2
-      [-<<<<
+      [-<<<<<
 === BEGIN INCREMENT ===
 +[
   -
@@ -85,7 +92,7 @@ will either be L=76 or R=82 or EOF=0
 
 >
 === END INCREMENT ===  
-      >>>>]
+      >>>>>]
 
       move 10s digit left
       >[<+>-]
@@ -114,6 +121,8 @@ will either be L=76 or R=82 or EOF=0
 
   === END READ DIGITS ===
 ]
+
+<<  point back at cont
 
 === END READ LINE ===
 
