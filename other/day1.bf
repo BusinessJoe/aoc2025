@@ -1,4 +1,4 @@
-STAT p1(5*4) p2(5*4) dial (line)
+STAT p1(5*4) p2(5*4) dial dist right_copy (line)
 line is (cont right n d1 d2 d3 scratch)
 
 skip over solution space = 40 cells
@@ -9,19 +9,20 @@ skip over solution space = 40 cells
 
 >+++++[<++++++++++>-]<
 setup (sols) ^dial=50 (line)
->   point at line
+>>>   point at line
 +   set cont
+[   loop read line
 === BEGIN READ LINE ===
 
 assumes pointing at cont
 
 >[-]    reset right
 >[-]    reset n
-,      read into n (scratch)
+>,      read into d1 (scratch)
 will either be L=76 or R=82 or EOF=0
-<<->>   reset cont
+<<<->>>   reset cont
 [
-  <<+>> set cont
+  <<<+>>> set cont
 
   determine if L or R by subtracting 76=4*19
   >++++[<
@@ -31,11 +32,9 @@ will either be L=76 or R=82 or EOF=0
 
   [
     if not zero then we had R
-    <+>
-    [-] clear n (scratch)
+    <<+>>
+    [-] clear d1 (scratch)
   ]
-
-  > point at d1
 
   === BEGIN READ DIGIT ===
   assumes pointing at d1
@@ -58,7 +57,7 @@ will either be L=76 or R=82 or EOF=0
       >>>++++[<<<------------>>>-]<<<
       
       add 100s digit to part2
-      [-<<<<<
+      [-<<<<<<<
 === BEGIN INCREMENT ===
 +[
   -
@@ -92,7 +91,7 @@ will either be L=76 or R=82 or EOF=0
 
 >
 === END INCREMENT ===  
-      >>>>>]
+      >>>>>>>]
 
       move 10s digit left
       >[<+>-]
@@ -119,12 +118,33 @@ will either be L=76 or R=82 or EOF=0
 
   [<+>-]
 
+
   === END READ DIGITS ===
 ]
 
-<<  point back at cont
+<<<  point back at cont
 
 === END READ LINE ===
 
+=== BEGIN HANDLE LINE ===
+assumes pointing at cont
 
+<<  point at dial
+[
+  copies dial to dist
+  >>>>  point at right
+  [
+    -<<+>>  move value to right_copy
+    right rotation so dist=100 minus dial
+    <<<     point to dist
+    >>>>>>>>++++++++++[<<<<<<<<++++++++++>>>>>>>>-]<<<<<<<< add 100 to dist
+    <   point to dial
+    [->-<]  subtract dial from dist
+    >>>>    point at right
+  ]
+  <<[>>+<<-]    move value from right_copy to right
+]
 
+=== END HANDLE LINE ===
+
+]
