@@ -221,7 +221,61 @@ assumes pointing at cont
 ]
 
 
+check if dist is zero and increment p1 if it is
 <<<<< point at dist
+>+<   set iszero (scratch)
+[
+  if not zero then reset iszero
+  >-<
+  [<+>-]  copy to dial
+]
+<[>+<-]> copy back to dist
+>     point at iszero
+[
+  -
+  <<<
+  <<<<<<<<<<
+  <<<<<<<<<<
+=== BEGIN INCREMENT ===
++[
+  -
+  <<<<+
+  >>+
+  <<----------
+  [
+    >>-
+    <<[>+<-]
+  ]
+  >[<+>-]
+  <++++++++++>
+
+  >[
+    -
+    <<---------->>
+    >[<<<<<+>>>>>-]
+    <<<<<
+    +
+    >+
+    <<
+  ]
+
+  >>
+]
+
+<[
+  [>>>>>+<<<<<-]
+  >>>>>-
+]
+
+>
+=== END INCREMENT ===  
+  >>>>>>>>>>
+  >>>>>>>>>>
+  >>>
+]
+
+
+<   point at dist
 [
   copies dist to dial without clearing dist
   [->+<]
@@ -249,3 +303,49 @@ assumes pointing at cont
 >>> point at cont
 
 ]
+
+
+<<<<<
+<<<<<<<<<<
+<<<<<<<<<<  point at p1
+
+<<<<<<<<<<<<<<< point at first digit of p1
+
+=== print ===
+<<< one right of acc
+++++[<++++++++++++>-] add 48 to acc
+<.  print acc
+>>>>>>>>> next digit
+<<< one right of acc
+++++[<++++++++++++>-] add 48 to acc
+<.  print acc
+>>>>>>>>> next digit
+<<< one right of acc
+++++[<++++++++++++>-] add 48 to acc
+<.  print acc
+>>>>>>>>> next digit
+<<< one right of acc
+++++[<++++++++++++>-] add 48 to acc
+<.  print acc
+>>>>>>>>> next digit
+
+[-]++++++++++. print newline
+
+
+=== print ===
+
+<<< one right of acc
+++++[<++++++++++++>-] add 48 to acc
+<.  print acc
+>>>>>>>>> next digit
+<<< one right of acc
+++++[<++++++++++++>-] add 48 to acc
+<.  print acc
+>>>>>>>>> next digit
+<<< one right of acc
+++++[<++++++++++++>-] add 48 to acc
+<.  print acc
+>>>>>>>>> next digit
+<<< one right of acc
+++++[<++++++++++++>-] add 48 to acc
+<.  print acc
