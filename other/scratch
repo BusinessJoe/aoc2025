@@ -1,0 +1,178 @@
+core idea behind adding at a solution digit
+digit is form of (acc, scratch, overflow, offset, do_add)
+
+=== BEGIN INCREMENT ===
+
+assumes pointing at do_add
+
+set do_add
+while do_add is true:
+  reset do_add
+  add 1 to acc
+  set overflow
+  subtract 10 from acc
+  while acc is not zero:
+    reset overflow
+    move acc to scratch
+    point to acc
+  move scratch to acc
+  add 10 to acc
+
+  while overflow is true:
+    reset overflow
+    subtract 10 from acc
+    move offset of this digit to offset of next digit
+    point next digit
+    increment offset of next digit
+    set do_add on next digit
+    point at overflow
+
+  point at do_add
+
+while offset is not zero:
+  move offset to prev digit
+  point prev digit
+  decrement offset of prev digit
+
+point at do_add
+  
+
+=== END INCREMENT ===  
+
+  
+
+=== BEGIN INCREMENT ===
++[
+  -
+  <<<<+
+  >>+
+  <<----------
+  [
+    >>-
+    <<[>+<-]
+  ]
+  >[<+>-]
+  <++++++++++>
+
+  >[
+    -
+    <<---------->>
+    >[<<<<<+>>>>>-]
+    <<<<<
+    +
+    >+
+    <<
+  ]
+
+  >>
+]
+
+<[
+  [>>>>>+<<<<<-]
+  >>>>>-
+]
+
+>
+=== END INCREMENT ===
+
+
+line setup is as below:
+^cont right n d1 d2 d3 scratch
+
+=== BEGIN READ LINE ===
+
+>[-]    reset right
+>,      read into d1 (scratch)
+will either be L=76 or R=82 or EOF=0
+<<->>   reset cont
+[
+  <<+>> set cont
+
+  determine if L or R by subtracting 76=4*19
+  >++++[<
+  ----------
+  ---------
+  >-]<
+
+  [
+    if not zero, then we had R
+    <<+>>
+    [-] clear d1 (scratch)
+  ]
+
+  === BEGIN READ DIGIT ===
+  
+  ,     first digit always present
+  >,    second char may be LF=10
+  ----------
+  [
+    ++++++++++
+    not LF, read next
+    >,  third char may be LF=10
+    ----------
+    [
+      ++++++++++
+      not LF, next is guaranteed to be LF so read and clear
+      >,[-]<
+
+      <<    point at 100s digit
+      subtract '0'=48=4*12 using scratch space beyond digits
+      >>++++[<<------------>>-]<<
+      
+      add 100s digit to part2
+      [-<<<<
+=== INSERT INCREMENT ===
+      >>>>]
+
+      move 10s digit left
+      >[<+>-]
+
+      move 1s digit left
+      >[<+>-]
+    ]
+
+    handle 2 digit number by adding 10s digit to n
+    <<   point at 10s digit
+    subtract '0'=48=4*12 using scratch space beyond digits
+    >>++++[<<------------>>-]<<
+
+    [<<+>>-]
+
+    move 1s digit left
+    >[<+>-]
+  ]
+
+  handle 1 digit number by adding to n
+  < point at 1s digit
+  subtract '0'=48=4*12 using scratch space beyond digits
+  >>++++[<<------------>>-]<<
+
+  [<<+>>-]
+
+  === END READ DIGITS ===
+]
+
+=== END READ LINE ===
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
