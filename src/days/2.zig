@@ -18,7 +18,7 @@ pub fn solution(allocator: Allocator, input: []const u8, part1_buf: []u8, part2_
         // We need to guarantee no repeats
         var set: std.AutoHashMapUnmanaged(u64, void) = .empty;
         defer set.deinit(allocator);
-        for (2..get_len(id_last) + 1) |repeats| {
+        for (2..getIntLenBase10(id_last) + 1) |repeats| {
             total_p2 += try get_invalid_values(allocator, id_first, id_last, repeats, &set);
         }
     }
@@ -27,8 +27,8 @@ pub fn solution(allocator: Allocator, input: []const u8, part1_buf: []u8, part2_
 }
 
 fn get_invalid_values(allocator: Allocator, id_first: u64, id_last: u64, repeats: u64, set_opt: ?*std.AutoHashMapUnmanaged(u64, void)) !u64 {
-    const id_first_len = get_len(id_first);
-    const id_last_len = get_len(id_last);
+    const id_first_len = getIntLenBase10(id_first);
+    const id_last_len = getIntLenBase10(id_last);
 
     if (id_first_len != id_last_len) {
         const nines = try std.math.powi(u64, 10, id_first_len) - 1;
@@ -67,7 +67,7 @@ fn get_invalid_values(allocator: Allocator, id_first: u64, id_last: u64, repeats
 }
 
 fn repeat(n: u64, repeats: u64) !u64 {
-    const len = get_len(n);
+    const len = getIntLenBase10(n);
     const mult = try std.math.powi(u64, 10, len);
 
     var result: u64 = 0;
@@ -77,20 +77,7 @@ fn repeat(n: u64, repeats: u64) !u64 {
     return result;
 }
 
-// fn is_invalid(id: u64, stride: u64) struct { bool, u64 } {
-//     const len = get_len(id);
-//     var i = len / 2;
-//     while (i > 0) {
-//         i -= 1;
-//         if (get_ith_digit(id, i) != get_ith_digit(id, i + len / 2)) {
-//             const step = try std.math.powi(u64, 10, i);
-//             return .{ false, step };
-//         }
-//     }
-//     return .{ true, 
-// }
-
-fn get_len(int: u64) u64 {
+fn getIntLenBase10(int: u64) u64 {
     return std.math.log10_int(int) + 1;
 }
 
