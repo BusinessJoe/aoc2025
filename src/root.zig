@@ -13,3 +13,7 @@ pub const solutions = [_]framework.DaySolution{
     @import("days/7.zig").solution,
     @import("days/8.zig").solution,
 };
+
+test {
+    _ = @import("bounded_min_heap.zig");
+}
