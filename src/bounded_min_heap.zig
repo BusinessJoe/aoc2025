@@ -222,7 +222,7 @@ fn testHeapSort(ctx: Ctx, input: []const u32) !void {
     try testing.expectEqualSlices(u32, std_sorted, heap_sorted);
 }
 
-test "fuzz heap sort aa" {
+test "fuzz heap sort" {
     var prng = std.Random.DefaultPrng.init(blk: {
         var seed: u64 = undefined;
         try std.posix.getrandom(std.mem.asBytes(&seed));

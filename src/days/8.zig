@@ -132,6 +132,10 @@ fn usizelessThan(ctx: void, a: usize, b: usize) bool {
     return a < b;
 }
 
+fn u8LessThan(a: u8, b: u8) bool {
+    return a < b;
+}
+
 fn getGraphSize(allocator: Allocator, point_idx: usize, adjacency_list: AdjacencyList, visited: *std.AutoHashMapUnmanaged(usize, void)) !usize {
     if (visited.contains(point_idx)) return 0;
 

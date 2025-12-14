@@ -16,4 +16,5 @@ pub const solutions = [_]framework.DaySolution{
 
 test {
     _ = @import("bounded_min_heap.zig");
+    _ = @import("octree.zig");
 }
