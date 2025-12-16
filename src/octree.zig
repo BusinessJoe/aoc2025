@@ -3,6 +3,7 @@ const testing = std.testing;
 const ArrayList = std.ArrayList;
 const Allocator = std.mem.Allocator;
 const BoundedMinHeap = @import("bounded_min_heap.zig").BoundedMinHeap;
+const MinHeap = @import("min_heap.zig").MinHeap;
 
 const BranchNode = struct {
     branches: [8]?usize,
@@ -199,7 +200,7 @@ pub fn Octree(T: type) type {
         pub const NNIterator = struct {
             tree: *const Octree(T),
             target: [3]u64,
-            heap: BoundedMinHeap(HeapItem, HeapItem.lt),
+            heap: MinHeap(HeapItem, HeapItem.lt),
 
             const HeapItem = struct {
                 idx: usize,
@@ -211,14 +212,14 @@ pub fn Octree(T: type) type {
             };
 
             pub fn init(tree: *const Octree(T), allocator: Allocator, target: [3]u64) !NNIterator {
-                var heap = try BoundedMinHeap(HeapItem, HeapItem.lt)
-                    .initCapacity(allocator, tree.nodes.items.len);
+                var heap = try MinHeap(HeapItem, HeapItem.lt)
+                    .initCapacity(allocator, tree.nodes.items.len / 10);
                 errdefer heap.deinit(allocator);
 
                 const root = tree.nodes.items[0];
                 std.debug.assert(root == .branch);
 
-                try heap.insert(.{
+                try heap.insert(allocator, .{
                     .idx = 0, 
                     .sq_dist = root.branch.sqDistanceTo(target),
                 });
@@ -234,7 +235,7 @@ pub fn Octree(T: type) type {
                 self.heap.deinit(allocator);
             }
 
-            pub fn next(it: *NNIterator) ?Node(T).Leaf {
+            pub fn next(it: *NNIterator, allocator: Allocator) !?Node(T).Leaf {
                 while (it.heap.pop()) |heap_item| {
                     const node = &it.tree.nodes.items[heap_item.idx];
                     switch (node.*) {
@@ -246,10 +247,10 @@ pub fn Octree(T: type) type {
                                 const child_node_idx = child_node_idx_opt.?;
                                 const child_node = it.tree.nodes.items[child_node_idx];
                                 const dist = child_node.sqDistanceTo(it.target);
-                                it.heap.insert(.{
+                                try it.heap.insert(allocator, .{
                                     .idx = child_node_idx,
                                     .sq_dist = dist,
-                                }) catch unreachable;
+                                });
                             }
                         },
                     }
@@ -401,11 +402,11 @@ test "nearest neighbour iterator" {
     var iter = try octree.iterator(testing.allocator, .{10, 0, 0});
     defer iter.deinit(testing.allocator);
 
-    try testing.expectEqual(Node(u8).Leaf{.point = .{5, 0, 0}, .data = 5 }, iter.next());
-    try testing.expectEqual(Node(u8).Leaf{.point = .{4, 0, 0}, .data = 4 }, iter.next());
-    try testing.expectEqual(Node(u8).Leaf{.point = .{3, 0, 0}, .data = 3 }, iter.next());
-    try testing.expectEqual(Node(u8).Leaf{.point = .{2, 0, 0}, .data = 2 }, iter.next());
-    try testing.expectEqual(Node(u8).Leaf{.point = .{1, 0, 0}, .data = 1 }, iter.next());
-    try testing.expectEqual(Node(u8).Leaf{.point = .{0, 0, 0}, .data = 0 }, iter.next());
-    try testing.expectEqual(null, iter.next());
+    try testing.expectEqual(Node(u8).Leaf{.point = .{5, 0, 0}, .data = 5 }, try iter.next(testing.allocator));
+    try testing.expectEqual(Node(u8).Leaf{.point = .{4, 0, 0}, .data = 4 }, try iter.next(testing.allocator));
+    try testing.expectEqual(Node(u8).Leaf{.point = .{3, 0, 0}, .data = 3 }, try iter.next(testing.allocator));
+    try testing.expectEqual(Node(u8).Leaf{.point = .{2, 0, 0}, .data = 2 }, try iter.next(testing.allocator));
+    try testing.expectEqual(Node(u8).Leaf{.point = .{1, 0, 0}, .data = 1 }, try iter.next(testing.allocator));
+    try testing.expectEqual(Node(u8).Leaf{.point = .{0, 0, 0}, .data = 0 }, try iter.next(testing.allocator));
+    try testing.expectEqual(null, iter.next(testing.allocator));
 }

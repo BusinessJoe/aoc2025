@@ -12,6 +12,8 @@ in {
     zig."0.15.2"
     pkgs.valgrind
     pkgs.gdb
+    pkgs.gprof2dot
+    pkgs.graphviz
   ];
   # languages.zig.enable = true;
   enterShell = "zig version"; 

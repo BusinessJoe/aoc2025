@@ -99,7 +99,7 @@ fn findPairsFast(allocator: Allocator, points: []Point) ![]Pair {
     defer it_heap.deinit(allocator);
 
     for (iterators.items, 0..) |*it, i| {
-        if (getNextLeaf(it, i)) |leaf| {
+        if (try getNextLeaf(allocator, it, i)) |leaf| {
             const sq_dist = calcSqDist(points[i], leaf.point);
             const pair: NNIPair = .{
                 .it_idx = i,
@@ -112,20 +112,20 @@ fn findPairsFast(allocator: Allocator, points: []Point) ![]Pair {
     const pairs = try allocator.alloc(Pair, 1000);
     errdefer allocator.free(pairs);
     for (pairs) |*pair| {
-        pair.* = try nextClosestPair(&it_heap, iterators.items) orelse unreachable;
+        pair.* = try nextClosestPair(allocator, &it_heap, iterators.items) orelse unreachable;
     }
 
     return pairs;
 }
 
-fn nextClosestPair(it_heap: *BoundedMinHeap(NNIPair, NNIPair.lt), iterators: []Octree(usize).NNIterator) !?Pair {
+fn nextClosestPair(allocator: Allocator, it_heap: *BoundedMinHeap(NNIPair, NNIPair.lt), iterators: []Octree(usize).NNIterator) !?Pair {
     const nni_pair_opt = it_heap.pop();
     if (nni_pair_opt == null) return null;
     const nni_pair = nni_pair_opt.?;
     const pair = nni_pair.pair;
     
     const it = &iterators[nni_pair.it_idx];
-    if (getNextLeaf(it, nni_pair.it_idx)) |next_leaf| {
+    if (try getNextLeaf(allocator, it, nni_pair.it_idx)) |next_leaf| {
         const next_pair = Pair{
             .p1 = nni_pair.it_idx,
             .p2 = next_leaf.data,
@@ -141,8 +141,8 @@ fn nextClosestPair(it_heap: *BoundedMinHeap(NNIPair, NNIPair.lt), iterators: []O
     return pair;
 }
 
-fn getNextLeaf(it: *Octree(usize).NNIterator, it_idx: usize) ?OctreeNode(usize).Leaf {
-    while (it.next()) |leaf| {
+fn getNextLeaf(allocator: Allocator, it: *Octree(usize).NNIterator, it_idx: usize) !?OctreeNode(usize).Leaf {
+    while (try it.next(allocator)) |leaf| {
         if (leaf.data > it_idx) return leaf;
     }
     return null;
