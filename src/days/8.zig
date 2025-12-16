@@ -1,6 +1,10 @@
 const std = @import("std");
+const ArrayList = std.ArrayList;
 const Allocator = std.mem.Allocator;
 const DayResult = @import("../framework.zig").DayResult;
+const Octree = @import("../octree.zig").Octree;
+const OctreeNode = @import("../octree.zig").Node;
+const BoundedMinHeap = @import("../bounded_min_heap.zig").BoundedMinHeap;
 
 const Point = [3]u64;
 
@@ -24,13 +28,14 @@ pub fn solution(allocator: Allocator, input: []const u8, part1_buf: []u8, part2_
         const y = try std.fmt.parseInt(u64, y_str, 10);
         const z = try std.fmt.parseInt(u64, z_str, 10);
 
+
         const point: Point = [_]u64{x, y, z};
 
         points[i] = point;
         i += 1;
     }
 
-    const pairs: []Pair = try findPairsSlow(allocator, points);
+    const pairs: []Pair = try findPairsFast(allocator, points);
     defer allocator.free(pairs);
 
     std.mem.sortUnstable(Pair, pairs, {}, pairLessThan);
@@ -55,27 +60,92 @@ fn pairLessThan(ctx: void, pair1: Pair, pair2: Pair) bool {
     return pair1.sq_dist < pair2.sq_dist;
 }
 
-fn findPairsSlow(allocator: Allocator, points: []Point) ![]Pair {
-    const pairs: []Pair = try allocator.alloc(Pair, points.len * (points.len - 1) / 2);
-    errdefer allocator.free(pairs);
+/// Pair from a NNIterator
+const NNIPair = struct {
+    it_idx: usize,
+    pair: Pair,
 
-    var pair_idx: usize = 0;
-    for (points, 0..) |point1, i| {
-        for (i+1..points.len) |j| {
-            const point2 = points[j];
-            const pair: Pair = .{ 
-                .sq_dist = calcSqDist(point1, point2), 
-                .p1 = i, 
-                .p2 = j,
+    fn lt(lhs: NNIPair, rhs: NNIPair) bool {
+        return lhs.pair.sq_dist < rhs.pair.sq_dist;
+    }
+};
+
+fn findPairsFast(allocator: Allocator, points: []Point) ![]Pair {
+    var max_coord: u64 = 0;
+    for (points) |point| {
+        max_coord = @max(max_coord, point[0], point[1], point[2]);
+    }
+
+    var octree = try Octree(usize).init(allocator, max_coord + 1);
+    defer octree.deinit(allocator);
+
+    for (points, 0..) |point, i| {
+        try octree.insert(allocator, point, i);
+    }
+
+    var iterators = try ArrayList(Octree(usize).NNIterator).initCapacity(allocator, points.len);
+    defer {
+        for (iterators.items) |*it| {
+            it.deinit(allocator);
+        }
+        iterators.deinit(allocator);
+    }
+
+    for (points) |point| {
+        iterators.appendAssumeCapacity(try octree.iterator(allocator, point));
+    }
+
+    var it_heap = try BoundedMinHeap(NNIPair, NNIPair.lt).initCapacity(allocator, points.len);
+    defer it_heap.deinit(allocator);
+
+    for (iterators.items, 0..) |*it, i| {
+        if (getNextLeaf(it, i)) |leaf| {
+            const sq_dist = calcSqDist(points[i], leaf.point);
+            const pair: NNIPair = .{
+                .it_idx = i,
+                .pair = .{ .p1 = i, .p2 = leaf.data, .sq_dist = sq_dist },
             };
-            pairs[pair_idx] = pair;
-            pair_idx += 1;
+            try it_heap.insert(pair);
         }
     }
 
-    std.debug.assert(pair_idx == pairs.len);
+    const pairs = try allocator.alloc(Pair, 1000);
+    errdefer allocator.free(pairs);
+    for (pairs) |*pair| {
+        pair.* = try nextClosestPair(&it_heap, iterators.items) orelse unreachable;
+    }
 
     return pairs;
+}
+
+fn nextClosestPair(it_heap: *BoundedMinHeap(NNIPair, NNIPair.lt), iterators: []Octree(usize).NNIterator) !?Pair {
+    const nni_pair_opt = it_heap.pop();
+    if (nni_pair_opt == null) return null;
+    const nni_pair = nni_pair_opt.?;
+    const pair = nni_pair.pair;
+    
+    const it = &iterators[nni_pair.it_idx];
+    if (getNextLeaf(it, nni_pair.it_idx)) |next_leaf| {
+        const next_pair = Pair{
+            .p1 = nni_pair.it_idx,
+            .p2 = next_leaf.data,
+            .sq_dist = calcSqDist(it.target, next_leaf.point),
+        };
+        const item: NNIPair = .{
+            .it_idx = nni_pair.it_idx,
+            .pair = next_pair,
+        };
+        try it_heap.insert(item);
+    }
+
+    return pair;
+}
+
+fn getNextLeaf(it: *Octree(usize).NNIterator, it_idx: usize) ?OctreeNode(usize).Leaf {
+    while (it.next()) |leaf| {
+        if (leaf.data > it_idx) return leaf;
+    }
+    return null;
 }
 
 fn calcSqDist(point1: Point, point2: Point) u64 {
