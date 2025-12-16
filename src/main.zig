@@ -1,21 +1,26 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 const Instant = std.time.Instant;
+const builtin = @import("builtin");
 
 const aoc2025 = @import("aoc2025");
 const DaySolution = aoc2025.framework.DaySolution;
 const DayResult = aoc2025.framework.DayResult;
 
+var debug_allocator: std.heap.DebugAllocator(.{}) = .init;
+
 pub fn main() !void {
-    var gpa: std.heap.DebugAllocator(.{}) = .init;
-    const allocator = gpa.allocator();
-    defer {
-        if (gpa.deinit() == .leak) {
-            std.debug.print("Memory leaked\n", .{});
-        } else {
-            std.debug.print("All memory freed :)\n", .{});
-        }
-    }
+    const allocator, const is_debug = gpa: {
+        if (builtin.os.tag == .wasi) break :gpa .{ std.heap.wasm_allocator, false };
+        break :gpa switch (builtin.mode) {
+            .Debug, .ReleaseSafe => .{ debug_allocator.allocator(), true },
+            .ReleaseFast, .ReleaseSmall => .{ std.heap.smp_allocator, false },
+        };
+    };
+    defer if (is_debug) {
+        _ = debug_allocator.deinit();
+    };
+
 
     // Set up stdout
     const stdout_buf = try allocator.alloc(u8, 1024);

@@ -8,8 +8,9 @@ Run with `zig build run -- demo` or `zig build run -- real`.
 
 ## Profiling (note for myself)
 ```
-$ valgrind --tool=callgrind --dump-instr=yes --simulate-cache=yes --collect-jumps=yes <executable> [args...]
-$ gprof2dot.py --format=callgrind --output=out.dot /path/to/callgrind.out
-$ dot -Tpng out.dot -o graph.png
+zig build -Dtarget=x86_64-linux-gnu -Dcpu=x86_64 -Doptimize=ReleaseSafe
+valgrind --tool=callgrind --dump-instr=yes --simulate-cache=yes --collect-jumps=yes <executable> [args...]
+gprof2dot.py --format=callgrind --output=out.dot /path/to/callgrind.out
+dot -Tpng out.dot -o graph.png
 ```
 
