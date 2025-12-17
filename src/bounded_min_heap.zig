@@ -55,6 +55,11 @@ pub fn BoundedMinHeap(comptime T: type, lessThanFn: fn (T, T) bool) type {
             return min_item;
         }
 
+        pub fn replace(self: *Self, item: T) void {
+            self.buffer[0] = item;
+            self.siftDown(0);
+        }
+
         fn siftUp(self: *Self, index: usize) void {
             var child_index = index;
             while (child_index > 0 

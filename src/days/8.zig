@@ -119,7 +119,7 @@ fn findPairsFast(allocator: Allocator, points: []Point) ![]Pair {
 }
 
 fn nextClosestPair(allocator: Allocator, it_heap: *BoundedMinHeap(NNIPair, NNIPair.lt), iterators: []Octree(usize).NNIterator) !?Pair {
-    const nni_pair_opt = it_heap.pop();
+    const nni_pair_opt = it_heap.peek();
     if (nni_pair_opt == null) return null;
     const nni_pair = nni_pair_opt.?;
     const pair = nni_pair.pair;
@@ -135,7 +135,9 @@ fn nextClosestPair(allocator: Allocator, it_heap: *BoundedMinHeap(NNIPair, NNIPa
             .it_idx = nni_pair.it_idx,
             .pair = next_pair,
         };
-        try it_heap.insert(item);
+        it_heap.replace(item);
+    } else {
+        _ = it_heap.pop();
     }
 
     return pair;
