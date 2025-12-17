@@ -1,3 +1,5 @@
+.direnv
+
 # Devenv
 .devenv/
 .devenv.flake.nix

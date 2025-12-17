@@ -20,6 +20,26 @@ pub fn build(b: *std.Build) void {
     // of this build script using `b.option()`. All defined flags (including
     // target and optimize options) will be listed when running `zig build --help`
     // in this directory.
+    
+    
+    const options = .{
+        .enable_ztracy = b.option(
+            bool,
+            "enable_ztracy",
+            "Enable Tracy profile markers",
+        ) orelse false,
+        .enable_fibers = b.option(
+            bool,
+            "enable_fibers",
+            "Enable Tracy fiber support",
+        ) orelse false,
+        .on_demand = b.option(
+            bool,
+            "on_demand",
+            "Build tracy with TRACY_ON_DEMAND",
+        ) orelse false,
+    };
+
 
     // This creates a module, which represents a collection of source files alongside
     // some compilation options, such as optimization mode and linked system libraries.
@@ -82,6 +102,15 @@ pub fn build(b: *std.Build) void {
             },
         }),
     });
+
+    const ztracy = b.dependency("ztracy", .{
+        .enable_ztracy = options.enable_ztracy,
+        .enable_fibers = options.enable_fibers,
+        .on_demand = options.on_demand,
+    });
+
+    mod.addImport("ztracy", ztracy.module("root"));
+    exe.linkLibrary(ztracy.artifact("tracy"));
 
     // This declares intent for the executable to be installed into the
     // install prefix when running `zig build` (i.e. when executing the default

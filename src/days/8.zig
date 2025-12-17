@@ -1,6 +1,9 @@
 const std = @import("std");
 const ArrayList = std.ArrayList;
 const Allocator = std.mem.Allocator;
+
+const ztracy = @import("ztracy");
+
 const DayResult = @import("../framework.zig").DayResult;
 const Octree = @import("../octree.zig").Octree;
 const OctreeNode = @import("../octree.zig").Node;
@@ -35,7 +38,12 @@ pub fn solution(allocator: Allocator, input: []const u8, part1_buf: []u8, part2_
         i += 1;
     }
 
-    const pairs: []Pair = try findPairsFast(allocator, points);
+    var pairs: []Pair = undefined;
+    {
+        const tracy_zone = ztracy.ZoneNC(@src(), "Compute Magic", 0x00_ff_00_00);
+        pairs = try findPairsFast(allocator, points);
+        defer tracy_zone.End();
+    }        
     defer allocator.free(pairs);
 
     std.mem.sortUnstable(Pair, pairs, {}, pairLessThan);
