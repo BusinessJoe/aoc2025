@@ -38,12 +38,7 @@ pub fn solution(allocator: Allocator, input: []const u8, part1_buf: []u8, part2_
         i += 1;
     }
 
-    var pairs: []Pair = undefined;
-    {
-        const tracy_zone = ztracy.ZoneNC(@src(), "Compute Magic", 0x00_ff_00_00);
-        pairs = try findPairsFast(allocator, points);
-        defer tracy_zone.End();
-    }        
+    var pairs: []Pair = try findPairsFast(allocator, points);
     defer allocator.free(pairs);
 
     std.mem.sortUnstable(Pair, pairs, {}, pairLessThan);
@@ -79,6 +74,9 @@ const NNIPair = struct {
 };
 
 fn findPairsFast(allocator: Allocator, points: []Point) ![]Pair {
+    const tracy_zone = ztracy.ZoneN(@src(), "findPairsFast");
+    defer tracy_zone.End();
+
     var max_coord: u64 = 0;
     for (points) |point| {
         max_coord = @max(max_coord, point[0], point[1], point[2]);
@@ -87,8 +85,12 @@ fn findPairsFast(allocator: Allocator, points: []Point) ![]Pair {
     var octree = try Octree(usize).init(allocator, max_coord + 1);
     defer octree.deinit(allocator);
 
-    for (points, 0..) |point, i| {
-        try octree.insert(allocator, point, i);
+    {
+        const tracy_zone_octree_building = ztracy.ZoneN(@src(), "octree building");
+        defer tracy_zone_octree_building.End();
+        for (points, 0..) |point, i| {
+            try octree.insert(allocator, point, i);
+        }
     }
 
     var iterators = try ArrayList(Octree(usize).NNIterator).initCapacity(allocator, points.len);
@@ -106,14 +108,19 @@ fn findPairsFast(allocator: Allocator, points: []Point) ![]Pair {
     var it_heap = try BoundedMinHeap(NNIPair, NNIPair.lt).initCapacity(allocator, points.len);
     defer it_heap.deinit(allocator);
 
-    for (iterators.items, 0..) |*it, i| {
-        if (try getNextLeaf(allocator, it, i)) |leaf| {
-            const sq_dist = calcSqDist(points[i], leaf.point);
-            const pair: NNIPair = .{
-                .it_idx = i,
-                .pair = .{ .p1 = i, .p2 = leaf.data, .sq_dist = sq_dist },
-            };
-            try it_heap.insert(pair);
+    {
+        const tracy_zone_init_iterators = ztracy.ZoneN(@src(), "init iterators");
+        defer tracy_zone_init_iterators.End();
+        for (iterators.items, 0..) |*it, i| {
+
+            if (try getNextLeaf(allocator, it, i)) |leaf| {
+                const sq_dist = calcSqDist(points[i], leaf.point);
+                const pair: NNIPair = .{
+                    .it_idx = i,
+                    .pair = .{ .p1 = i, .p2 = leaf.data, .sq_dist = sq_dist },
+                };
+                try it_heap.insert(pair);
+            }
         }
     }
 
@@ -127,6 +134,9 @@ fn findPairsFast(allocator: Allocator, points: []Point) ![]Pair {
 }
 
 fn nextClosestPair(allocator: Allocator, it_heap: *BoundedMinHeap(NNIPair, NNIPair.lt), iterators: []Octree(usize).NNIterator) !?Pair {
+    const tracy_zone = ztracy.ZoneN(@src(), "nextClosestPair");
+    defer tracy_zone.End();
+
     const nni_pair_opt = it_heap.peek();
     if (nni_pair_opt == null) return null;
     const nni_pair = nni_pair_opt.?;
@@ -152,6 +162,9 @@ fn nextClosestPair(allocator: Allocator, it_heap: *BoundedMinHeap(NNIPair, NNIPa
 }
 
 fn getNextLeaf(allocator: Allocator, it: *Octree(usize).NNIterator, it_idx: usize) !?OctreeNode(usize).Leaf {
+    const tracy_zone = ztracy.ZoneN(@src(), "getNextLeaf");
+    defer tracy_zone.End();
+
     while (try it.next(allocator)) |leaf| {
         if (leaf.data > it_idx) return leaf;
     }
@@ -159,6 +172,9 @@ fn getNextLeaf(allocator: Allocator, it: *Octree(usize).NNIterator, it_idx: usiz
 }
 
 fn calcSqDist(point1: Point, point2: Point) u64 {
+    const tracy_zone = ztracy.ZoneN(@src(), "calcSqDist");
+    defer tracy_zone.End();
+
     const dx = @max(point1[0], point2[0]) - @min(point1[0], point2[0]);
     const dy = @max(point1[1], point2[1]) - @min(point1[1], point2[1]);
     const dz = @max(point1[2], point2[2]) - @min(point1[2], point2[2]);
@@ -168,6 +184,9 @@ fn calcSqDist(point1: Point, point2: Point) u64 {
 const AdjacencyList = []std.ArrayList(usize);
 
 fn buildGraphs(allocator: Allocator, pairs: []Pair, num_points: usize) ![3]u64 {
+    const tracy_zone = ztracy.ZoneN(@src(), "buildGraphs");
+    defer tracy_zone.End();
+
     const adjacency_list = try allocator.alloc(std.ArrayList(usize), num_points);
     defer {
         for (adjacency_list) |*list| {

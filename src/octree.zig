@@ -5,6 +5,8 @@ const Allocator = std.mem.Allocator;
 const BoundedMinHeap = @import("bounded_min_heap.zig").BoundedMinHeap;
 const MinHeap = @import("min_heap.zig").MinHeap;
 
+const ztracy = @import("ztracy");
+
 const BranchNode = struct {
     branches: [8]?usize,
 
@@ -212,6 +214,9 @@ pub fn Octree(T: type) type {
             };
 
             pub fn init(tree: *const Octree(T), allocator: Allocator, target: [3]u64) !NNIterator {
+                const tracy_zone = ztracy.ZoneN(@src(), "NNIterator init");
+                defer tracy_zone.End();
+
                 var heap = try MinHeap(HeapItem, HeapItem.lt)
                     .initCapacity(allocator, tree.nodes.items.len / 10);
                 errdefer heap.deinit(allocator);
@@ -237,6 +242,9 @@ pub fn Octree(T: type) type {
 
             pub fn next(it: *NNIterator, allocator: Allocator) !?Node(T).Leaf {
                 while (it.heap.pop()) |heap_item| {
+                    const tracy_zone = ztracy.ZoneN(@src(), "NNIterator next process heap item");
+                    defer tracy_zone.End();
+
                     const node = &it.tree.nodes.items[heap_item.idx];
                     switch (node.*) {
                         .leaf => |leaf| return leaf,
