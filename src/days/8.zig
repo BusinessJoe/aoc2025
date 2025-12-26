@@ -8,6 +8,7 @@ const DayResult = @import("../framework.zig").DayResult;
 const Octree = @import("../octree.zig").Octree;
 const OctreeNode = @import("../octree.zig").Node;
 const BoundedMinHeap = @import("../bounded_min_heap.zig").BoundedMinHeap;
+const RingBuffer = @import("../ring_buffer.zig").RingBuffer;
 
 const Point = [3]u64;
 
@@ -19,37 +20,84 @@ pub fn solution(allocator: Allocator, input: []const u8, part1_buf: []u8, part2_
     defer allocator.free(points);
 
     var lines = std.mem.splitScalar(u8, input, '\n');
-    var i: usize = 0;
-    while (lines.next()) |line| {
-        var coords = std.mem.splitScalar(u8, line, ',');
-        
-        const x_str = coords.next() orelse return error.ExpectedCoord;
-        const y_str = coords.next() orelse return error.ExpectedCoord;
-        const z_str = coords.next() orelse return error.ExpectedCoord;
+    {
+        var i: usize = 0;
+        while (lines.next()) |line| {
+            var coords = std.mem.splitScalar(u8, line, ',');
+            
+            const x_str = coords.next() orelse return error.ExpectedCoord;
+            const y_str = coords.next() orelse return error.ExpectedCoord;
+            const z_str = coords.next() orelse return error.ExpectedCoord;
 
-        const x = try std.fmt.parseInt(u64, x_str, 10);
-        const y = try std.fmt.parseInt(u64, y_str, 10);
-        const z = try std.fmt.parseInt(u64, z_str, 10);
+            const x = try std.fmt.parseInt(u64, x_str, 10);
+            const y = try std.fmt.parseInt(u64, y_str, 10);
+            const z = try std.fmt.parseInt(u64, z_str, 10);
 
 
-        const point: Point = [_]u64{x, y, z};
+            const point: Point = [_]u64{x, y, z};
 
-        points[i] = point;
-        i += 1;
+            points[i] = point;
+            i += 1;
+        }
     }
 
-    var pairs: []Pair = try findPairsFast(allocator, points);
+    const pairs: []Pair = try findPairsFast(allocator, points);
     defer allocator.free(pairs);
 
-    std.mem.sortUnstable(Pair, pairs, {}, pairLessThan);
+    // We'll represent our graphs via an adjacency list
+    const adj_list: AdjacencyList = try allocator.alloc(std.ArrayList(usize), num_points);
+    for (adj_list) |*list| list.* = .empty;
+    defer {
+        for (adj_list) |*list| {
+            list.deinit(allocator);
+        }
+        allocator.free(adj_list);
+    }
 
-    const closest1000 = pairs[0..1000];
+    var part1: u32 = undefined;
+    var part2: u64 = 696969;
 
-    const top3 = try buildGraphs(allocator, closest1000, points.len);
+    const visited = try allocator.alloc(bool, num_points);
+    defer allocator.free(visited);
+    @memset(visited, false);
+    visited[0] = true;
+    var total_visited: u32 = 1;
 
-    const part1 = top3[0] * top3[1] * top3[2];
+    const queue_buf = try allocator.alloc(usize, num_points);
+    defer allocator.free(queue_buf);
 
-    return DayResult.both_parts(part1_buf, part2_buf, part1, null);
+    var queue = RingBuffer(usize).init(queue_buf);
+
+    for (pairs, 0..) |pair, i| {
+        try adj_list[pair.p1].append(allocator, pair.p2);
+        try adj_list[pair.p2].append(allocator, pair.p1);
+
+        // After 1000 pairs, we can answer part 1
+        if (i == 999) {
+            part1 = try solvePart1(allocator, adj_list);
+        }
+
+        if (visited[pair.p1] and !visited[pair.p2]) {
+            total_visited += floodFill(adj_list, pair.p2, visited, &queue);
+        } else if (visited[pair.p2] and !visited[pair.p1]) {
+            total_visited += floodFill(adj_list, pair.p1, visited, &queue);
+        }
+
+        if (total_visited == num_points) {
+            // Our graph is now fully connected, we can answer part 2
+            // Part 2 is the product of the x coordinates of the last two connected junction boxes.
+            part2 = points[pair.p1][0] * points[pair.p2][0];
+            break;
+        }
+    }
+
+    return DayResult.both_parts(part1_buf, part2_buf, part1, part2);
+}
+
+fn solvePart1(allocator: Allocator, adj_list: AdjacencyList) !u32 {
+    _ = allocator;
+    _ = adj_list;
+    return 0;
 }
 
 const Pair = struct {
@@ -124,13 +172,14 @@ fn findPairsFast(allocator: Allocator, points: []Point) ![]Pair {
         }
     }
 
-    const pairs = try allocator.alloc(Pair, 1000);
-    errdefer allocator.free(pairs);
-    for (pairs) |*pair| {
-        pair.* = try nextClosestPair(allocator, &it_heap, iterators.items) orelse unreachable;
+    var pairs: ArrayList(Pair) = .empty;
+    errdefer pairs.deinit(allocator);
+
+    while (try nextClosestPair(allocator, &it_heap, iterators.items)) |pair| {
+        try pairs.append(allocator, pair);
     }
 
-    return pairs;
+    return try pairs.toOwnedSlice(allocator);
 }
 
 fn nextClosestPair(allocator: Allocator, it_heap: *BoundedMinHeap(NNIPair, NNIPair.lt), iterators: []Octree(usize).NNIterator) !?Pair {
@@ -181,49 +230,43 @@ fn calcSqDist(point1: Point, point2: Point) u64 {
     return dx * dx + dy * dy + dz * dz;
 }
 
-const AdjacencyList = []std.ArrayList(usize);
+const AdjacencyList = []ArrayList(usize);
 
-fn buildGraphs(allocator: Allocator, pairs: []Pair, num_points: usize) ![3]u64 {
-    const tracy_zone = ztracy.ZoneN(@src(), "buildGraphs");
-    defer tracy_zone.End();
+/// Visit all unvisited vertices connected to the given vertex.
+///
+/// The connections are defined by the adjacency list, and the visited flag for
+/// each connected vertex will be set.
+///
+/// The queue must be a ring buffer with capacity at least equal to the total number of vertices.
+/// The queue may be modified by this function.
+///
+/// Returns the number of newly visited vertices.
+fn floodFill(adj_list: AdjacencyList, vertex: usize, visited: []bool, queue: *RingBuffer(usize)) u32 {
+    queue.clear();
 
-    const adjacency_list = try allocator.alloc(std.ArrayList(usize), num_points);
-    defer {
-        for (adjacency_list) |*list| {
-            list.deinit(allocator);
+    // Invariant: all vertices in the queue must not be visited prior to being
+    // placed in the queue, and are considered visited once they are in the queue.
+    // This ensures that each vertex is only added to the queue once.
+
+    if (visited[vertex]) return 0;
+
+    var count: u32 = 0;
+    queue.pushBack(vertex);
+    visited[vertex] = true;
+    
+    while (queue.popFront()) |v| {
+        // By invariant, we are not double-counting
+        count += 1;
+
+        for (adj_list[v].items) |neighbour| {
+            if (visited[neighbour]) continue;
+
+            queue.pushBack(neighbour);
+            visited[neighbour] = true;
         }
-        allocator.free(adjacency_list);
     }
 
-    for (adjacency_list) |*list| {
-        list.* = try std.ArrayList(usize).initCapacity(allocator, 5);
-    }
-
-    for (pairs) |pair| {
-        try adjacency_list[pair.p1].append(allocator, pair.p2);
-        try adjacency_list[pair.p2].append(allocator, pair.p1);
-    }
-
-
-    var visited: std.AutoHashMapUnmanaged(usize, void) = .empty;
-    defer visited.deinit(allocator);
-
-    var graph_sizes: std.ArrayList(usize) = .empty;
-    defer graph_sizes.deinit(allocator);
-
-    for (0..num_points) |point_idx| {
-        if (visited.contains(point_idx)) continue;
-
-        try graph_sizes.append(allocator, try getGraphSize(allocator, point_idx, adjacency_list, &visited));
-    }
-
-    std.mem.sortUnstable(usize, graph_sizes.items, {}, usizelessThan);
-
-    return [_]u64{
-        graph_sizes.items[graph_sizes.items.len - 1],
-        graph_sizes.items[graph_sizes.items.len - 2],
-        graph_sizes.items[graph_sizes.items.len - 3],
-    };
+    return count;
 }
 
 fn usizelessThan(ctx: void, a: usize, b: usize) bool {
@@ -235,15 +278,3 @@ fn u8LessThan(a: u8, b: u8) bool {
     return a < b;
 }
 
-fn getGraphSize(allocator: Allocator, point_idx: usize, adjacency_list: AdjacencyList, visited: *std.AutoHashMapUnmanaged(usize, void)) !usize {
-    if (visited.contains(point_idx)) return 0;
-
-    try visited.put(allocator, point_idx, {});
-    var total: usize = 1;
-
-    for (adjacency_list[point_idx].items) |next| {
-        total += try getGraphSize(allocator, next, adjacency_list, visited);
-    }
-
-    return total;
-}
