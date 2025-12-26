@@ -41,8 +41,8 @@ pub fn solution(allocator: Allocator, input: []const u8, part1_buf: []u8, part2_
         }
     }
 
-    const pairs: []Pair = try findPairsFast(allocator, points);
-    defer allocator.free(pairs);
+    var pairs = try ClosestPairIterator.init(allocator, points);
+    defer pairs.deinit(allocator);
 
     // We'll represent our graphs via an adjacency list
     const adj_list: AdjacencyList = try allocator.alloc(std.ArrayList(usize), num_points);
@@ -54,8 +54,8 @@ pub fn solution(allocator: Allocator, input: []const u8, part1_buf: []u8, part2_
         allocator.free(adj_list);
     }
 
-    var part1: u32 = undefined;
-    var part2: u64 = 696969;
+    var part1: u32 = 0;
+    var part2: u64 = 0;
 
     const visited = try allocator.alloc(bool, num_points);
     defer allocator.free(visited);
@@ -68,7 +68,9 @@ pub fn solution(allocator: Allocator, input: []const u8, part1_buf: []u8, part2_
 
     var queue = RingBuffer(usize).init(queue_buf);
 
-    for (pairs, 0..) |pair, i| {
+    var i: usize = 0;
+    while (try pairs.next(allocator)) |pair| {
+        i += 1;
         try adj_list[pair.p1].append(allocator, pair.p2);
         try adj_list[pair.p2].append(allocator, pair.p1);
 
@@ -121,46 +123,47 @@ const NNIPair = struct {
     }
 };
 
-fn findPairsFast(allocator: Allocator, points: []Point) ![]Pair {
-    const tracy_zone = ztracy.ZoneN(@src(), "findPairsFast");
-    defer tracy_zone.End();
+const ClosestPairIterator = struct {
+    // The iterators keep a pointer to their octree, so we can't let the octree
+    // get moved.
+    octree: *Octree(usize),
+    it_heap: BoundedMinHeap(NNIPair, NNIPair.lt),
+    iterators: ArrayList(Octree(usize).NNIterator),
 
-    var max_coord: u64 = 0;
-    for (points) |point| {
-        max_coord = @max(max_coord, point[0], point[1], point[2]);
-    }
+    pub fn init(allocator: Allocator, points: []Point) !ClosestPairIterator {
+        // Our octree will be a cube containing every point, so we need to find
+        // how large the cube's side length will need to be.
+        var max_coord: u64 = 0;
+        for (points) |point| {
+            max_coord = @max(max_coord, point[0], point[1], point[2]);
+        }
 
-    var octree = try Octree(usize).init(allocator, max_coord + 1);
-    defer octree.deinit(allocator);
+        var octree = try allocator.create(Octree(usize));
+        errdefer allocator.destroy(octree);
 
-    {
-        const tracy_zone_octree_building = ztracy.ZoneN(@src(), "octree building");
-        defer tracy_zone_octree_building.End();
+        octree.* = try Octree(usize).init(allocator, max_coord + 1);
+        errdefer octree.deinit(allocator);
+
         for (points, 0..) |point, i| {
             try octree.insert(allocator, point, i);
         }
-    }
 
-    var iterators = try ArrayList(Octree(usize).NNIterator).initCapacity(allocator, points.len);
-    defer {
-        for (iterators.items) |*it| {
-            it.deinit(allocator);
+        var iterators = try ArrayList(Octree(usize).NNIterator).initCapacity(allocator, points.len);
+        errdefer {
+            for (iterators.items) |*it| {
+                it.deinit(allocator);
+            }
+            iterators.deinit(allocator);
         }
-        iterators.deinit(allocator);
-    }
 
-    for (points) |point| {
-        iterators.appendAssumeCapacity(try octree.iterator(allocator, point));
-    }
+        for (points) |point| {
+            iterators.appendAssumeCapacity(try octree.iterator(allocator, point));
+        }
 
-    var it_heap = try BoundedMinHeap(NNIPair, NNIPair.lt).initCapacity(allocator, points.len);
-    defer it_heap.deinit(allocator);
+        var it_heap = try BoundedMinHeap(NNIPair, NNIPair.lt).initCapacity(allocator, points.len);
+        errdefer it_heap.deinit(allocator);
 
-    {
-        const tracy_zone_init_iterators = ztracy.ZoneN(@src(), "init iterators");
-        defer tracy_zone_init_iterators.End();
         for (iterators.items, 0..) |*it, i| {
-
             if (try getNextLeaf(allocator, it, i)) |leaf| {
                 const sq_dist = calcSqDist(points[i], leaf.point);
                 const pair: NNIPair = .{
@@ -170,17 +173,28 @@ fn findPairsFast(allocator: Allocator, points: []Point) ![]Pair {
                 try it_heap.insert(pair);
             }
         }
+
+        return ClosestPairIterator{
+            .octree = octree,
+            .it_heap = it_heap,
+            .iterators = iterators,
+        };
     }
 
-    var pairs: ArrayList(Pair) = .empty;
-    errdefer pairs.deinit(allocator);
-
-    while (try nextClosestPair(allocator, &it_heap, iterators.items)) |pair| {
-        try pairs.append(allocator, pair);
+    pub fn deinit(self: *ClosestPairIterator, allocator: Allocator) void {
+        self.octree.deinit(allocator);
+        allocator.destroy(self.octree);
+        self.it_heap.deinit(allocator);
+        for (self.iterators.items) |*it| {
+            it.deinit(allocator);
+        }
+        self.iterators.deinit(allocator);
     }
 
-    return try pairs.toOwnedSlice(allocator);
-}
+    pub fn next(self: *ClosestPairIterator, allocator: Allocator) !?Pair {
+        return try nextClosestPair(allocator, &self.it_heap, self.iterators.items);
+    }
+};
 
 fn nextClosestPair(allocator: Allocator, it_heap: *BoundedMinHeap(NNIPair, NNIPair.lt), iterators: []Octree(usize).NNIterator) !?Pair {
     const tracy_zone = ztracy.ZoneN(@src(), "nextClosestPair");
@@ -267,14 +281,5 @@ fn floodFill(adj_list: AdjacencyList, vertex: usize, visited: []bool, queue: *Ri
     }
 
     return count;
-}
-
-fn usizelessThan(ctx: void, a: usize, b: usize) bool {
-    _ = ctx;
-    return a < b;
-}
-
-fn u8LessThan(a: u8, b: u8) bool {
-    return a < b;
 }
 
