@@ -54,7 +54,7 @@ pub fn solution(allocator: Allocator, input: []const u8, part1_buf: []u8, part2_
         allocator.free(adj_list);
     }
 
-    var part1: u32 = 0;
+    var part1: u64 = 0;
     var part2: u64 = 0;
 
     const visited = try allocator.alloc(bool, num_points);
@@ -76,7 +76,7 @@ pub fn solution(allocator: Allocator, input: []const u8, part1_buf: []u8, part2_
 
         // After 1000 pairs, we can answer part 1
         if (i == 999) {
-            part1 = try solvePart1(allocator, adj_list);
+            part1 = try solvePart1(allocator, adj_list, num_points);
         }
 
         if (visited[pair.p1] and !visited[pair.p2]) {
@@ -96,10 +96,38 @@ pub fn solution(allocator: Allocator, input: []const u8, part1_buf: []u8, part2_
     return DayResult.both_parts(part1_buf, part2_buf, part1, part2);
 }
 
-fn solvePart1(allocator: Allocator, adj_list: AdjacencyList) !u32 {
-    _ = allocator;
-    _ = adj_list;
-    return 0;
+fn u64lt(lhs: u64, rhs: u64) bool { return lhs < rhs; }
+
+fn solvePart1(allocator: Allocator, adj_list: AdjacencyList, num_points: usize) !u64 {
+    var heap = try BoundedMinHeap(u64, u64lt).initCapacity(allocator, 3);
+    defer heap.deinit(allocator);
+
+    const visited = try allocator.alloc(bool, num_points);
+    defer allocator.free(visited);
+    @memset(visited, false);
+
+    const queue_buf = try allocator.alloc(usize, num_points);
+    defer allocator.free(queue_buf);
+
+    var queue = RingBuffer(usize).init(queue_buf);
+
+    for (visited, 0..) |v, i| {
+        if (v) continue;
+        const graph_size = floodFill(adj_list, i, visited, &queue);
+
+        if (heap.count < 3) {
+            heap.insert(graph_size) catch unreachable;
+        } else if (graph_size > heap.peek().?) {
+            heap.replace(graph_size);
+        }
+    }
+
+    var part1: u64 = 1;
+    for (heap.buffer[0..3]) |size| {
+        part1 *= size;
+    }
+
+    return part1;
 }
 
 const Pair = struct {
