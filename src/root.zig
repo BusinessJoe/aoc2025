@@ -12,6 +12,7 @@ pub const solutions = [_]framework.DaySolution{
     @import("days/6.zig").solution,
     @import("days/7.zig").solution,
     @import("days/8.zig").solution,
+    @import("days/9.zig").solution,
 };
 
 test {
